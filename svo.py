@@ -18,7 +18,7 @@ def getSubsFromConjunctions(subs):
         rightDeps = {tok.lower_ for tok in rights}
         if "and" in rightDeps:
             moreSubs.extend([tok for tok in rights if tok.dep_ in SUBJECTS or tok.pos_ == "NOUN"])
-            if len(moreSubs) > 0:
+            if moreSubs:
                 moreSubs.extend(getSubsFromConjunctions(moreSubs))
     return moreSubs
 
@@ -31,7 +31,7 @@ def getObjsFromConjunctions(objs):
         rightDeps = {tok.lower_ for tok in rights}
         if "and" in rightDeps:
             moreObjs.extend([tok for tok in rights if tok.dep_ in OBJECTS or tok.pos_ == "NOUN"])
-            if len(moreObjs) > 0:
+            if moreObjs:
                 moreObjs.extend(getObjsFromConjunctions(moreObjs))
     return moreObjs
 
@@ -42,7 +42,7 @@ def getVerbsFromConjunctions(verbs):
         rightDeps = {tok.lower_ for tok in verb.rights}
         if "and" in rightDeps:
             moreVerbs.extend([tok for tok in verb.rights if tok.pos_ == "VERB"])
-            if len(moreVerbs) > 0:
+            if moreVerbs:
                 moreVerbs.extend(getVerbsFromConjunctions(moreVerbs))
     return moreVerbs
 
@@ -53,7 +53,7 @@ def findSubs(tok):
         head = head.head
     if head.pos_ == "VERB":
         subs = [tok for tok in head.lefts if tok.dep_ == "SUB"]
-        if len(subs) > 0:
+        if subs:
             verbNegated = isNegated(head)
             subs.extend(getSubsFromConjunctions(subs))
             return subs, verbNegated
@@ -66,10 +66,9 @@ def findSubs(tok):
 
 def isNegated(tok):
     negations = {"no", "not", "n't", "never", "none"}
-    for dep in list(tok.lefts) + list(tok.rights):
-        if dep.lower_ in negations:
-            return True
-    return False
+    return any(
+        dep.lower_ in negations for dep in list(tok.lefts) + list(tok.rights)
+    )
 
 
 def findSVs(tokens):
@@ -98,7 +97,7 @@ def getAdjectives(toks):
         adjs = [left for left in tok.lefts if left.dep_ in ADJECTIVES]
         adjs.append(tok)
         adjs.extend([right for right in tok.rights if tok.dep_ in ADJECTIVES])
-        tok_with_adj = " ".join([adj.lower_ for adj in adjs])
+        tok_with_adj = " ".join(adj.lower_ for adj in adjs)
         toks_with_adjectives.extend(adjs)
 
     return toks_with_adjectives
@@ -108,12 +107,12 @@ def getObjsFromAttrs(deps):
     for dep in deps:
         if dep.pos_ == "NOUN" and dep.dep_ == "attr":
             verbs = [tok for tok in dep.rights if tok.pos_ == "VERB"]
-            if len(verbs) > 0:
+            if verbs:
                 for v in verbs:
                     rights = list(v.rights)
                     objs = [tok for tok in rights if tok.dep_ in OBJECTS]
                     objs.extend(getObjsFromPrepositions(rights))
-                    if len(objs) > 0:
+                    if objs:
                         return v, objs
     return None, None
 
@@ -125,7 +124,7 @@ def getObjFromXComp(deps):
             rights = list(v.rights)
             objs = [tok for tok in rights if tok.dep_ in OBJECTS]
             objs.extend(getObjsFromPrepositions(rights))
-            if len(objs) > 0:
+            if objs:
                 return v, objs
     return None, None
 
@@ -133,7 +132,7 @@ def getObjFromXComp(deps):
 def getAllSubs(v):
     verbNegated = isNegated(v)
     subs = [tok for tok in v.lefts if tok.dep_ in SUBJECTS and tok.pos_ != "DET"]
-    if len(subs) > 0:
+    if subs:
         subs.extend(getSubsFromConjunctions(subs))
     else:
         foundSubs, verbNegated = findSubs(v)
@@ -151,7 +150,7 @@ def getAllObjs(v):
     if potentialNewVerb is not None and potentialNewObjs is not None and len(potentialNewObjs) > 0:
         objs.extend(potentialNewObjs)
         v = potentialNewVerb
-    if len(objs) > 0:
+    if objs:
         objs.extend(getObjsFromConjunctions(objs))
     return v, objs
 
@@ -161,7 +160,7 @@ def getAllObjsWithAdjectives(v):
     rights = list(v.rights)
     objs = [tok for tok in rights if tok.dep_ in OBJECTS]
 
-    if len(objs) == 0:
+    if not objs:
         objs = [tok for tok in rights if tok.dep_ in ADJECTIVES]
 
     objs.extend(getObjsFromPrepositions(rights))
@@ -170,7 +169,7 @@ def getAllObjsWithAdjectives(v):
     if potentialNewVerb is not None and potentialNewObjs is not None and len(potentialNewObjs) > 0:
         objs.extend(potentialNewObjs)
         v = potentialNewVerb
-    if len(objs) > 0:
+    if objs:
         objs.extend(getObjsFromConjunctions(objs))
     return v, objs
 
